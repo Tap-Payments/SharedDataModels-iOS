@@ -6,6 +6,44 @@
 //
 
 import Foundation
+
+//MARK: - Scope
+/// The scope of the intended sdk integration
+@objc public enum Scope: Int, RawRepresentable, Codable {
+    /// Will generate an authenticated token that can be used to perform charges afterwards
+    case Authenticate
+    /// Will generate a tap token to be used in charges api afterwards
+    case Token
+    
+    
+    public typealias RawValue = String
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Authenticate:
+            return "Authenticate"
+        case .Token:
+            return "Token"
+        }
+    }
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue.lowercased() {
+        case "authenticate":
+            self = .Authenticate
+        case "token":
+            self = .Token
+        default:
+            return nil
+        }
+    }
+    
+    public init(from decoder: Decoder) throws {
+        self = try Scope(rawValue: decoder.singleValueContainer().decode(RawValue.self)) ?? .Token
+    }
+}
+
+
 // MARK: - Acceptance
 /// The acceptance details for the transaction
 @objcMembers public class Acceptance: NSObject, Codable {
