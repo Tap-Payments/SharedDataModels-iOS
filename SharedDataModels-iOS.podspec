@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'SharedDataModels-iOS'
-  s.version          = '0.0.11'
+  s.version          = '0.0.12'
   s.summary          = 'Common data models for used across different Tap sdks SharedDataModels-iOS.'
   s.homepage         = 'https://github.com/Tap-Payments/SharedDataModels-iOS'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
