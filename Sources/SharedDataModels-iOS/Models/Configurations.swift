@@ -62,6 +62,61 @@ import Foundation
 }
 
 
+//MARK: - AuthenticationPurpose
+/// The scope of the intended athenticated token
+@objc public enum AuthenticationPurpose: Int, RawRepresentable, Codable {
+    /// The generated authenticated card token will be used to perform a single charge
+    case PaymentTransction
+    /// The generated authenticated card token will be used to perform a recurring charges
+    case RecurringTransaction
+    /// The generated authenticated card token will be used to perform a  charge which is a part of coming charges as installements
+    case InstallmentTransaction
+    /// The generated authenticated card token will be used to save a card
+    case SaveCard
+    /// The generated authenticated card token will be used to verify the ownership of the card
+    case CardHolderVerification
+    
+    
+    public typealias RawValue = String
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .PaymentTransction:
+            return "PAYMENT_TRANSACTION"
+        case .RecurringTransaction:
+            return "RECURRING_TRANSACTION"
+        case .InstallmentTransaction:
+            return "INSTALLMENT_TRANSACTION"
+        case .SaveCard:
+            return "ADD_CARD"
+        case .CardHolderVerification:
+            return "CARDHOLDER_VERIFICATION"
+        }
+    }
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue.uppercased() {
+        case "PAYMENT_TRANSACTION":
+            self = .PaymentTransction
+        case "RECURRING_TRANSACTION":
+            self = .RecurringTransaction
+        case "INSTALLMENT_TRANSACTION":
+            self = .InstallmentTransaction
+        case "ADD_CARD":
+            self = .SaveCard
+        case "CARDHOLDER_VERIFICATION":
+            self = .CardHolderVerification
+        default:
+            return nil
+        }
+    }
+    
+    public init(from decoder: Decoder) throws {
+        self = try AuthenticationPurpose(rawValue: decoder.singleValueContainer().decode(RawValue.self)) ?? .PaymentTransction
+    }
+}
+
+
 // MARK: - Acceptance
 /// The acceptance details for the transaction
 @objcMembers public class Acceptance: NSObject, Codable {
@@ -578,14 +633,73 @@ extension Merchant {
     }
 }
 
+// MARK: - Order
+/// The tap's order model
+@objcMembers public class Order: NSObject, Codable {
+    
+    public var id: String?
+    /// The order model
+    /// - Parameter id: The tap order id
+    @objc public init(id: String?) {
+        self.id = id
+    }
+}
+
+// MARK: Order convenience initializers and mutators
+
+extension Order {
+    convenience init(data: Data) throws {
+        let me = try newJSONDecoder().decode(Order.self, from: data)
+        self.init(id: me.id)
+    }
+    
+    convenience init(_ json: String, using encoding: String.Encoding = .utf8) throws {
+        guard let data = json.data(using: encoding) else {
+            throw NSError(domain: "JSONDecoding", code: 0, userInfo: nil)
+        }
+        try self.init(data: data)
+    }
+    
+    convenience init(fromURL url: URL) throws {
+        try self.init(data: try Data(contentsOf: url))
+    }
+    
+    func with(
+        id: String?? = nil
+    ) -> Order {
+        return Order(
+            id: id ?? self.id
+        )
+    }
+    
+    func jsonData() throws -> Data {
+        return try newJSONEncoder().encode(self)
+    }
+    
+    func jsonString(encoding: String.Encoding = .utf8) throws -> String? {
+        return String(data: try self.jsonData(), encoding: encoding)
+    }
+}
+
 // MARK: - Transaction
 @objcMembers public class Transaction: NSObject, Codable {
     public var amount: Int?
     public var currency: String?
+    public var metadata: [String:String]?
+    public var transactionDescription: String?
+    public var reference: String?
     
-    @objc public init(amount: Int = 1, currency: String?) {
+    @objc public init(amount: Int = 1, currency: String? = "SAR", metadata:[String:String]? = [:], description:String? = "", reference: String? = "") {
         self.amount = amount
         self.currency = currency
+        self.metadata = metadata
+        self.transactionDescription = description
+        self.reference = reference
+    }
+    
+    private enum CodingKeys : String, CodingKey {
+        case transactionDescription = "description"
+        case amount, currency, metadata
     }
 }
 
@@ -929,4 +1043,20 @@ func newJSONEncoder() -> JSONEncoder {
         encoder.dateEncodingStrategy = .iso8601
     }
     return encoder
+}
+
+
+
+internal extension Transaction {
+    
+    static func generateRandomTransactionId() -> String {
+        let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        let randomString = "tck_LV\((0..<23).map{ _ in String(letters.randomElement()!) }.reduce("", +))"
+        return randomString
+    }
+    static func generateRandomOrderId() -> String {
+        let letters = "0123456789"
+        let randomString = (0..<17).map{ _ in String(letters.randomElement()!) }.reduce("", +)
+        return randomString
+    }
 }
